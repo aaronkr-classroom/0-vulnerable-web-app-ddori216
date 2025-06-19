@@ -2,49 +2,56 @@
 include("config.php");
 session_start();
 
+header("X-Frame-Options: DENY"); //클릭재킹방지
+
 //get post parameters
 
-$user=$_POST['username'];
-$old=$_POST['oldpasswd'];
-$new=$_POST['newpasswd'];
-
+$user=mysqli_real_escape_string($db, $_POST['username']);
+$old=mysqli_real_escape_string($db, $_POST['oldpasswd']);
+$new=mysqli_real_escape_string($db, $_POST['newpasswd']);
+$csrf = mysqli_real_escape_string($db, $_POST['csrf_token']);
 
 //check session else redirect to login page
 $check=$_SESSION['login_user'];
 if($check==NULL)
 {
-	header("Location: /vulnerable/index.html");
+	header("Location: /index.php");
 }
 
 //check values else redirect to settings page
 if($check!=NULL && ($user==NULL || $old==NULL || $new==NULL) )
 {
-header("Location: /vulnerable/settings.php");	
+header("Location: /settings.php");	
 }
 
+//csrf 감지
+if ($_SESSION['csrf'] == $csrf) {
+	if ( $check == $user) { //진짜 사용자 확인
+		
+		//update password 
 
+		$sql="UPDATE register set password='$new' where username='$user' AND password='$old'";
 
+		//echo htmlentities($sql);
+		echo "</br>";
 
-//update password 
+		$result=mysqli_query($db, $sql) or die('Error querying database.');
 
-$sql="UPDATE register set password='$new' where username='$user' AND password='$old'";
-
-echo $sql;
-echo "</br>";
-
-$result=mysqli_query($db, $sql) or die('Error querying database.');
-
-if( mysqli_affected_rows($db)>0)
-{
-echo "<h2>Password updated successfully</h2>";
+		if( mysqli_affected_rows($db)>0)
+		{
+		echo "<h2>Password updated successfully</h2>";
+		}
+		else {
+			echo "<h2>Incorrect Password</h2>";
+		}
+	} else {
+		echo "<h2>You are not authorized to change other user's passwords </h2>";
+	}
+} else {
+	echo "<h2>CSRF detected! Get out!</h2>"
 }
-else {
-	echo "<h2>Incorrect Password</h2>";
-}
-
 
 mysqli_close($db);
-
 
 ?>
 
@@ -52,12 +59,6 @@ mysqli_close($db);
 <body>
 </br>
 
-<script>
-if(top != window) {
-  top.location = window.location
-}
-
-</script>
-<a href="/vulnerable/settings.php" > <h3>Go back</h3> </a>
+<a href="/settings.php" > <h3>Go back</h3> </a>
 </body>
 </html>
